@@ -1,37 +1,29 @@
 from flask import Flask, request, jsonify
-from utils.generate_image import generate_image
-from utils.generate_audio import generate_audio
-from utils.create_video import create_video
-from utils.upload_drive import upload_to_drive
-
+from moviepy.editor import TextClip, CompositeVideoClip
+import uuid
 import os
-from datetime import datetime
 
 app = Flask(__name__)
 
+@app.route("/")
+def home():
+    return "🟢 Servidor funcionando correctamente."
+
 @app.route("/generar_video", methods=["POST"])
 def generar_video():
-    data = request.get_json()
-    idea = data.get("idea")
-    prompt = data.get("prompt")
-
-    if not prompt:
-        return jsonify({"error": "Prompt faltante"}), 400
+    data = request.json
+    idea = data.get("idea", "video")
+    text = data.get("text", "Texto de ejemplo")
+    filename = f"{uuid.uuid4().hex[:8]}_{idea[:20].replace(' ', '_')}.mp4"
 
     try:
-        image_path = generate_image(prompt)
-        audio_path = generate_audio(prompt)
-        video_path = create_video(image_path, audio_path)
-
-        video_url = upload_to_drive(video_path)
-
-        return jsonify({"video_url": video_url})
+        clip = TextClip(text, fontsize=70, color='white', size=(720, 1280), method='caption').set_duration(5)
+        video = CompositeVideoClip([clip])
+        video.write_videofile(filename, fps=24)
+        return jsonify({"video_url": f"https://example.com/videos/{filename}"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/", methods=["GET"])
-def home():
-    return "Servidor activo - listo para generar videos"
-
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(debug=False, host="0.0.0.0", port=5000)
+
