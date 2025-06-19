@@ -1,69 +1,66 @@
 from flask import Flask, request, jsonify
 from moviepy.editor import TextClip, CompositeVideoClip
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 import os
 import uuid
 
 app = Flask(__name__)
 
-# Autenticación de Google Drive
-def autenticar_drive():
-    gauth = GoogleAuth()
-    gauth.LoadCredentialsFile("credentials.json")
-    if gauth.credentials is None:
-        gauth.LocalWebserverAuth()  # Solo funciona en local
-    elif gauth.access_token_expired:
-        gauth.Refresh()
-    else:
-        gauth.Authorize()
-    gauth.SaveCredentialsFile("credentials.json")
-    return GoogleDrive(gauth)
+# Ruta al archivo de cuenta de servicio
+SERVICE_ACCOUNT_FILE = 'service_account.json'
+SCOPES = ['https://www.googleapis.com/auth/drive']
 
-# Generar video simple desde texto
+# Autenticación con Google Drive API usando cuenta de servicio
+def get_drive_service():
+    credentials = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    return build('drive', 'v3', credentials=credentials)
+
+# Crear video vertical básico con texto
 def generar_video(texto, nombre_archivo):
     clip = TextClip(texto, fontsize=70, color='white', size=(720, 1280))
     clip = clip.set_duration(5)
     video = CompositeVideoClip([clip])
     video.write_videofile(nombre_archivo, fps=24)
 
+# Subir archivo a Drive y hacerlo público
+def subir_a_drive(nombre_archivo):
+    service = get_drive_service()
+    file_metadata = {'name': nombre_archivo}
+    media = MediaFileUpload(nombre_archivo, mimetype='video/mp4')
+    archivo = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+
+    # Hacer el archivo público
+    file_id = archivo.get('id')
+    service.permissions().create(
+        fileId=file_id,
+        body={'role': 'reader', 'type': 'anyone'},
+    ).execute()
+
+    # Obtener enlace público
+    enlace = f"https://drive.google.com/uc?id={file_id}&export=download"
+    return enlace
+
 @app.route("/")
 def home():
-    return "Servidor en producción con subida a Google Drive ✅"
+    return "Servidor en producción con cuenta de servicio ✅"
 
 @app.route("/generar_video", methods=["POST"])
-def generar_video_endpoint():
+def generar():
     data = request.get_json()
     idea = data.get("idea", "sin_idea")
     texto = data.get("text", "sin_texto")
 
-    # Generar nombre único
     nombre_archivo = f"{uuid.uuid4().hex}_{idea.replace(' ', '_')}.mp4"
-
-    # Generar video localmente
     generar_video(texto, nombre_archivo)
-
-    # Subir a Google Drive
-    drive = autenticar_drive()
-    archivo_drive = drive.CreateFile({'title': nombre_archivo})
-    archivo_drive.SetContentFile(nombre_archivo)
-    archivo_drive.Upload()
-
-    # Obtener enlace público
-    archivo_drive['sharingUser'] = 'me'
-    archivo_drive.InsertPermission({
-        'type': 'anyone',
-        'value': 'anyone',
-        'role': 'reader'
-    })
-    video_url = archivo_drive['alternateLink']
-
-    # Borrar video local
+    enlace_drive = subir_a_drive(nombre_archivo)
     os.remove(nombre_archivo)
 
     return jsonify({
         "status": "ok",
-        "video_url": video_url
+        "video_url": enlace_drive
     })
 
 if __name__ == "__main__":
