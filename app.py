@@ -8,44 +8,41 @@ import uuid
 
 app = Flask(__name__)
 
-# Ruta al archivo de cuenta de servicio
 SERVICE_ACCOUNT_FILE = 'service_account.json'
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
-# Autenticación con Google Drive API usando cuenta de servicio
 def get_drive_service():
     credentials = service_account.Credentials.from_service_account_file(
         SERVICE_ACCOUNT_FILE, scopes=SCOPES)
     return build('drive', 'v3', credentials=credentials)
 
-# Crear video vertical básico con texto
 def generar_video(texto, nombre_archivo):
     clip = TextClip(texto, fontsize=70, color='white', size=(720, 1280))
     clip = clip.set_duration(5)
     video = CompositeVideoClip([clip])
     video.write_videofile(nombre_archivo, fps=24)
 
-# Subir archivo a Drive y hacerlo público
 def subir_a_drive(nombre_archivo):
     service = get_drive_service()
-    file_metadata = {'name': nombre_archivo}
+    file_metadata = {
+        'name': nombre_archivo,
+        'parents': ['1d7HqxZpTgKoR0h9ZBxkEpPf4YO0EjR5a']
+    }
     media = MediaFileUpload(nombre_archivo, mimetype='video/mp4')
     archivo = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
 
-    # Hacer el archivo público
     file_id = archivo.get('id')
     service.permissions().create(
         fileId=file_id,
         body={'role': 'reader', 'type': 'anyone'},
     ).execute()
 
-    # Obtener enlace público
     enlace = f"https://drive.google.com/uc?id={file_id}&export=download"
     return enlace
 
 @app.route("/")
 def home():
-    return "Servidor en producción con cuenta de servicio ✅"
+    return "Servidor listo y conectado a tu carpeta personal ✅"
 
 @app.route("/generar_video", methods=["POST"])
 def generar():
