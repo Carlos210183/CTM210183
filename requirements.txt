@@ -1,6 +1,2 @@
-flask==3.0.0
-requests==2.31.0
-moviepy==1.0.3
-gtts==2.5.4
-pydub==0.25.1
-
+flask
+gunicorn

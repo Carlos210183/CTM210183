@@ -1,29 +1,22 @@
 from flask import Flask, request, jsonify
-from moviepy.editor import TextClip, CompositeVideoClip
-import uuid
-import os
 
 app = Flask(__name__)
 
-@app.route("/")
+@app.route('/')
 def home():
-    return "🟢 Servidor funcionando correctamente."
+    return 'Servidor en producción con Gunicorn ✅'
 
-@app.route("/generar_video", methods=["POST"])
+@app.route('/generar_video', methods=['POST'])
 def generar_video():
-    data = request.json
-    idea = data.get("idea", "video")
-    text = data.get("text", "Texto de ejemplo")
-    filename = f"{uuid.uuid4().hex[:8]}_{idea[:20].replace(' ', '_')}.mp4"
+    data = request.get_json()
+    idea = data.get("idea")
+    texto = data.get("text")
 
-    try:
-        clip = TextClip(text, fontsize=70, color='white', size=(720, 1280), method='caption').set_duration(5)
-        video = CompositeVideoClip([clip])
-        video.write_videofile(filename, fps=24)
-        return jsonify({"video_url": f"https://example.com/videos/{filename}"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    # Simulación de generación de video
+    return jsonify({
+        "status": "ok",
+        "video_url": f"https://tuvideo.fake/{idea.replace(' ', '_')}.mp4"
+    })
 
 if __name__ == "__main__":
-    app.run(debug=False, host="0.0.0.0", port=5000)
-
+    app.run(debug=True)
