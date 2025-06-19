@@ -1,7 +1,10 @@
-flask
-gunicorn
-moviepy
-google-api-python-client
-google-auth
-google-auth-httplib2
-google-auth-oauthlib
+flask==2.2.5
+gunicorn==20.1.0
+moviepy==1.0.3
+google-api-python-client==2.98.0
+google-auth==2.27.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.0
+imageio==2.31.1
+decorator==5.1.1
+tqdm==4.66.1
